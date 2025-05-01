@@ -80,17 +80,17 @@ def main():
     # Save detection metadata
     if args.json_out:
         metadata = []
-        for i in range(len(detections.xyxy)):
-            x1, y1, x2, y2 = detections.xyxy[i]
-            metadata.append({
-                "bbox": [float(x1), float(y1), float(x2), float(y2)],
-                "confidence": float(detections.confidence[i]),
-                "class_id": int(detections.class_id[i]),
-                "class_name": detections.class_name[i]
-            })
+    for i in range(len(detections.xyxy)):
+        x1, y1, x2, y2 = detections.xyxy[i]
+        metadata.append({
+            "bbox": [float(x1), float(y1), float(x2), float(y2)],
+            "confidence": float(detections.confidence[i]),
+            "class_id": int(detections.class_id[i]),
+            "class_name": detections.class_name[i]
+        })
 
-        with open(args.json_out, "w") as f:
-            json.dump(metadata, f, indent=2)
+    with open(args.json_out, "w") as f:
+        json.dump(metadata, f, indent=2)
         print(f"📦 Metadata saved to: {args.json_out}")
 
 if __name__ == "__main__":
