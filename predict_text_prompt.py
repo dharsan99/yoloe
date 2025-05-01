@@ -38,6 +38,7 @@ def main():
     results = model.predict(image, verbose=False)
     detections = sv.Detections.from_ultralytics(results[0])
 
+    # Handle no detections
     if len(detections) == 0:
         print("🔍 Detected 0 objects")
         image.save(args.output)
