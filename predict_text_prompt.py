@@ -54,7 +54,7 @@ def main():
     text_scale = sv.calculate_optimal_text_scale(resolution_wh)
 
     labels = [
-        f"{detections.class_name[i]} {detections.confidence[i]:.2f}"
+        f"{args.names[detections.class_id[i]]} {detections.confidence[i]:.2f}"
         for i in range(len(detections))
     ]
 
