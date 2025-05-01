@@ -8,35 +8,12 @@ from ultralytics import YOLOE
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--source",
-        type=str,
-        required=True,
-        help="Path to the input image"
-    )
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        default="yoloe-v8l-seg.pt",
-        help="Path or ID of the model checkpoint"
-    )
-    parser.add_argument(
-        "--names",
-        nargs="+",
-        default=["person"],
-        help="List of class names to set for the model"
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        help="Path to save the annotated image"
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        default="cpu",
-        help="Device to run inference on"
-    )
+    parser.add_argument("--source", type=str, required=True, help="Path to the input image")
+    parser.add_argument("--checkpoint", type=str, default="yoloe-v8l-seg.pt", help="Model checkpoint path")
+    parser.add_argument("--names", nargs="+", default=["person"], help="Class names to condition on")
+    parser.add_argument("--output", type=str, help="Path to save annotated image")
+    parser.add_argument("--json-out", type=str, help="Path to save detection metadata")
+    parser.add_argument("--device", type=str, default="cpu", help="Device to use (cpu or cuda)")
     return parser.parse_args()
 
 
@@ -49,23 +26,29 @@ def main():
 
     image = Image.open(args.source).convert("RGB")
 
-    # Load and prepare the model
     model = YOLOE(args.checkpoint)
     model.to(args.device)
     model.set_classes(args.names, model.get_text_pe(args.names))
 
-    # Inference
     results = model.predict(image, verbose=False)
     detections = sv.Detections.from_ultralytics(results[0])
 
-    # Annotate image
+    if len(detections) == 0:
+        print("🔍 Detected 0 objects")
+        annotated_image = image.copy()
+        annotated_image.save(args.output)
+        if args.json_out:
+            with open(args.json_out, "w") as f:
+                json.dump([], f, indent=2)
+        return
+
     resolution_wh = image.size
-    thickness = sv.calculate_optimal_line_thickness(resolution_wh=resolution_wh)
-    text_scale = sv.calculate_optimal_text_scale(resolution_wh=resolution_wh)
+    thickness = sv.calculate_optimal_line_thickness(resolution_wh)
+    text_scale = sv.calculate_optimal_text_scale(resolution_wh)
 
     labels = [
-        f"{class_name} {confidence:.2f}"
-        for class_name, confidence in zip(detections["class_name"], detections.confidence)
+        f"{detections.class_name[i]} {detections.confidence[i]:.2f}"
+        for i in range(len(detections))
     ]
 
     annotated_image = image.copy()
@@ -83,26 +66,24 @@ def main():
         smart_position=True
     ).annotate(scene=annotated_image, detections=detections, labels=labels)
 
-    # Save image
     annotated_image.save(args.output)
-    print(f"Annotated image saved to: {args.output}")
+    print(f"🖼️ Annotated image saved to: {args.output}")
 
-    # Save metadata as JSON
-    metadata_path = args.output.replace(".jpg", ".json")
-    metadata = []
-    for i in range(len(detections.xyxy)):
-        x1, y1, x2, y2 = detections.xyxy[i]
-        metadata.append({
-            "bbox": [float(x1), float(y1), float(x2), float(y2)],
-            "confidence": float(detections.confidence[i]),
-            "class_id": int(detections.class_id[i]),
-            "class_name": detections["class_name"][i]
-        })
+    if args.json_out:
+        metadata = []
+        for i in range(len(detections.xyxy)):
+            x1, y1, x2, y2 = detections.xyxy[i]
+            metadata.append({
+                "bbox": [float(x1), float(y1), float(x2), float(y2)],
+                "confidence": float(detections.confidence[i]),
+                "class_id": int(detections.class_id[i]),
+                "class_name": detections.class_name[i]
+            })
 
-    with open(metadata_path, "w") as f:
-        json.dump(metadata, f, indent=2)
+        with open(args.json_out, "w") as f:
+            json.dump(metadata, f, indent=2)
 
-    print(f"Metadata saved to: {metadata_path}")
+        print(f"📦 Metadata saved to: {args.json_out}")
 
 
 if __name__ == "__main__":
