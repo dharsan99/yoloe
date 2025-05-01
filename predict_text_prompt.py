@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument("--names", nargs="+", default=["person"], help="Prompt or class names")
     parser.add_argument("--output", type=str, help="Path to save annotated image")
     parser.add_argument("--json-out", type=str, help="Path to save detections as JSON")
-    parser.add_argument("--device", type=str, default="cpu", help="Device to run on (cpu or cuda)")
+    parser.add_argument("--device", type=str, default="cuda", help="Device to run on (cpu or cuda)")
     return parser.parse_args()
 
 
