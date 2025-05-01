@@ -1,5 +1,6 @@
 import argparse
 import os
+import json
 from PIL import Image
 import supervision as sv
 from ultralytics import YOLOE
@@ -48,14 +49,16 @@ def main():
 
     image = Image.open(args.source).convert("RGB")
 
+    # Load and prepare the model
     model = YOLOE(args.checkpoint)
     model.to(args.device)
-
     model.set_classes(args.names, model.get_text_pe(args.names))
-    results = model.predict(image, verbose=False)
 
+    # Inference
+    results = model.predict(image, verbose=False)
     detections = sv.Detections.from_ultralytics(results[0])
 
+    # Annotate image
     resolution_wh = image.size
     thickness = sv.calculate_optimal_line_thickness(resolution_wh=resolution_wh)
     text_scale = sv.calculate_optimal_text_scale(resolution_wh=resolution_wh)
@@ -80,8 +83,27 @@ def main():
         smart_position=True
     ).annotate(scene=annotated_image, detections=detections, labels=labels)
 
+    # Save image
     annotated_image.save(args.output)
     print(f"Annotated image saved to: {args.output}")
+
+    # Save metadata as JSON
+    metadata_path = args.output.replace(".jpg", ".json")
+    metadata = []
+    for i in range(len(detections.xyxy)):
+        x1, y1, x2, y2 = detections.xyxy[i]
+        metadata.append({
+            "bbox": [float(x1), float(y1), float(x2), float(y2)],
+            "confidence": float(detections.confidence[i]),
+            "class_id": int(detections.class_id[i]),
+            "class_name": detections["class_name"][i]
+        })
+
+    with open(metadata_path, "w") as f:
+        json.dump(metadata, f, indent=2)
+
+    print(f"Metadata saved to: {metadata_path}")
+
 
 if __name__ == "__main__":
     main()
